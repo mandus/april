@@ -412,7 +412,13 @@
                                                           :fn-assigned-symbols)))))))
     (if symbol-referenced
         ;; call the operator constructor on the output of the operand constructor which integrates axes
-        (values (list 'apl-compose :op (list 'inws symbol-referenced)
+        (values (list 'apl-compose :op ;; (if (member symbol-referenced
+                                       ;;             (getf (getf properties :special) :fn-assigned-symbols))
+                                       ;;     ;; wrap the symbol correctly depending on whether
+                                       ;;     ;; it's lexically or dynamically bound
+                                       ;;     (list 'inws symbol-referenced)
+                                       ;;     (list 'inwsd symbol-referenced))
+                      (list 'inws symbol-referenced)
                       (if (listp operand-form)
                           operand-form
                           (if (characterp operand-form)
@@ -700,7 +706,7 @@
                      (if (characterp precedent)
                          ;; account for the ⍺←⊢ case
                          (if (and (eql '⍺ symbol) (char= #\⊢ precedent))
-                             `(or ⍺ (setf ⍺ :right))
+                             `(or ⍺ (setf ⍺ :absent))
                              (if (or (resolve-function :monadic precedent)
                                      (resolve-function :dyadic precedent))
                                  (progn (set-workspace-alias space symbol precedent)
@@ -1050,7 +1056,8 @@
                     (setq items prior-items value nil))
                 (if (and (not function-axes) (member :axes function-props))
                     (setq function-axes (getf function-props :axes))))))
-  (if is-function (let* ((fn-content (if (or (functionp fn-element)
+  (if is-function (let* ((fn-sym (or-functional-character fn-element :fn))
+                         (fn-content (if (or (functionp fn-element)
                                              (and (symbolp fn-element)
                                                   (member fn-element '(⍺⍺ ⍵⍵ ∇ ∇∇)))
                                              (and (listp fn-element)
@@ -1068,8 +1075,7 @@
                          ;; the ∇ symbol resolving to :self-reference generates the #'∇self function used
                          ;; as a self-reference by lambdas invoked through the (alambda) macro
                          (fn-content (if (not (eql '∇ fn-content))
-                                         fn-content '#'∇self))
-                         (fn-sym (or-functional-character fn-element :fn)))
+                                         fn-content '#'∇self)))
                     (values `(apl-call ,fn-sym ,fn-content ,precedent ,@(if value (list value))
                                        ,@(if function-axes `((list ,@(first function-axes)))))
                             '(:type (:array :evaluated)) items))))
